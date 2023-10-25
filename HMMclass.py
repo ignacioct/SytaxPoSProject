@@ -1,5 +1,5 @@
-from typing import List, Tuple
-
+from typing import List, Tuple, Dict
+from collections import defaultdict
 import numpy as np
 
 
@@ -72,7 +72,47 @@ class HMM:
                     word_appearance.append(sublist)
 
         return word_appearance
+    
+    def vocab(self, cases: List[List[Tuple[str, str]]], epsilon: int = 5) -> Dict[str, int]:
+        """
+        Parses List[List[[WORD, TYPE]]] to count appearances of each word, if the word appears less than epsilon it is replaced by [UNK].
+        The function returns a Dict[WORD, INT] with the appearances of each word in the vocabulary.
 
+        Input
+        -----
+        cases: List[List[Tuple[str, str]]]
+            List containing all the tuples (word, type) that appears in the parsed file.
+
+        epsilon: int
+            Minimum appearances that a word has to have to be in the vocabulary.
+
+        Returns
+        -------
+        vocab: Dict[str, int]
+            Dictionary containing the vocabulary and each word appearances
+        """
+
+        dict_vocab: defaultdict[str, int] = defaultdict(lambda: 0) # Create default dict to count appearances of each word
+
+        # Count appearances of each word
+        for sublist in cases: 
+            for e in sublist: dict_vocab[e[0].lower()] += 1 
+        
+        # Replace words that appear rarely with [UNK] special token
+        kont: int = 0
+        vocab: Dict[str, int] = dict()
+
+        for k,v in dict_vocab.items():
+            if v <= epsilon:
+                kont += v
+            else:
+                vocab[k] = v
+
+        if kont!=0:
+            vocab["[UNK]"] = kont
+
+        return vocab
+    
     def train(self, dataset):
         # TODO
         # self.B = np.zeros() se tendria
