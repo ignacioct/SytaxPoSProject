@@ -5,7 +5,7 @@ import numpy as np
 
 class HMM:
     # Universal Dependencies POS tags
-    tags = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM", "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"]
+    tags = ['ADJ', 'ADP', 'ADV', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'VERB', 'X']
 
     def __init__(self, input_sequence):
         # Los nombres tambien ni idea por que lo de sacar fotos a la pizarra no los no sabemos
@@ -112,13 +112,59 @@ class HMM:
             vocab["[UNK]"] = kont
 
         return vocab
+
+    '''
+    Creates the transition matrix A
+
+    INPUT:
+    word_appearance:List[List[Tuple[str,str]]]
+            List containing all the tuples (word, type) that appears in the parsed file.
+
+
+    '''
+
+    def __createA(self, word_appearence):
+        mat = np.zeros((len(self.tags), len(self.tags)), dtype=int)
+        # For every sentence in word_appearence count the words
+        for sentece in word_appearence:
+            # The first prev_word is X (*)
+            prev_word = 'X'
+            for i in range(1, len(sentece)):
+                word = sentece[i][1]
+                mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
+                prev_word = word
+            # The last word is X (*)
+            word = 'X'
+            mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
+        # Use the counted words to calculate the log probability
+        for i in range(len(mat)):
+            # If the row is full of 0s then we got NaN in the division, so we put -inf before.
+            if sum(mat[i]) == 0:
+                self.A[i] = np.matrix([float("-inf") for w in range(len(mat[i]))])
+                continue
+            #Calculate the log2 probability
+            for j in range(len(mat[i])):
+                self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
+            print(self.A[i])
     
-    def train(self, dataset):
-        # TODO
-        # self.B = np.zeros() se tendria
+    def train(self, path):
         print("Training")
+        word_appearence = self.parse_conllu(path)
+        self.__createA(word_appearence)
+        print(self.tags)
+        print(self.A)
+        #TODO: Create B
+
+        # self.B = np.zeros() se tendria
+
+
+
+
+
+
 
 
 hmm = HMM("jjj")
 print(hmm.parse_conllu("UD_Spanish-AnCora/es_ancora-ud-dev.conllu"))
 print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
+hmm.train("UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
