@@ -18,7 +18,7 @@ class HMM:
         self.A = np.zeros((len(self.tags), len(self.tags)))
 
         # Observation likelihoods
-        self.B = np.zeros((len(self.tags), len(self.w)))
+        self.B = np.zeros((len(self.tags), len(self.w.split())))
 
         # Initial probability distribution over states
         self.pi = 0
@@ -146,14 +146,59 @@ class HMM:
             for j in range(len(mat[i])):
                 self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
             print(self.A[i])
+            
+    '''
+    Creates the emission matrix B
+
+    INPUT:
+    word_appearance:List[List[Tuple[str,str]]]
+            List containing all the tuples (word, type) that appears in the parsed file.
+
+
+    '''
+
+    def __createB(self, word_appearance):
+        # Split the input sequence into words
+        words = self.w.split()
+
+        num_tags = len(self.tags)
+        num_words = len(words)
+        B = np.zeros((num_tags, num_words))
+
+        # Count word occurrences given their corresponding tags
+        for sentence in word_appearance:
+            for word, tag in sentence:
+                # If the word is in the input we count it in its index position
+                if tag in self.tags and word in words:
+                    tag_idx = self.tags.index(tag)
+                    word_idx = words.index(word)
+                    B[tag_idx][word_idx] += 1
+
+        # Debug print for B matrix
+        print("Emission Matrix counts:")
+        print(B)
+
+        # Use the counted words to calculate the log probability
+        for i in range(len(B)):
+            for j in range(len(B[i])):
+                # If the column is full of 0s then we got NaN in the division, so we put -inf before.
+                if sum(B[:, j]) == 0:  
+                    self.B[:, j] = np.matrix([float("-inf") for w in range(len(B[:, j]))])
+                    continue
+                # Calculate the log2 probability
+                self.B[i][j] = np.log2(B[i][j] / sum(B[:,j]))
+
+
+
     
     def train(self, path):
         print("Training")
         word_appearence = self.parse_conllu(path)
         self.__createA(word_appearence)
+        self.__createB(word_appearence)
         print(self.tags)
         print(self.A)
-        #TODO: Create B
+        print(self.B)
 
         # self.B = np.zeros() se tendria
 
@@ -164,7 +209,7 @@ class HMM:
 
 
 
-hmm = HMM("jjj")
+hmm = HMM("estar pendiente a eso")
 print(hmm.parse_conllu("UD_Spanish-AnCora/es_ancora-ud-dev.conllu"))
-print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
+# print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
 hmm.train("UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
