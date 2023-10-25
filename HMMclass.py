@@ -4,8 +4,8 @@ import numpy as np
 
 
 class HMM:
-    # De momento ni idea que tags poner
-    tags = ["DET", "ADJ", "NOUN", "VERB", "ADV", "CONJ", "."]
+    # Universal Dependencies POS tags
+    tags = ["ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM", "PART", "PRON", "PROPN", "PUNCT", "SCONJ", "SYM", "VERB", "X"]
 
     def __init__(self, input_sequence):
         # Los nombres tambien ni idea por que lo de sacar fotos a la pizarra no los no sabemos
