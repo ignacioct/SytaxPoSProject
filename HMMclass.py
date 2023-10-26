@@ -6,7 +6,7 @@ import numpy as np
 
 class HMM:
     # Universal Dependencies POS tags
-    tags = [
+    self.tags = [
         "ADJ",
         "ADP",
         "ADV",
