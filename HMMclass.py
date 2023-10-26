@@ -5,30 +5,27 @@ import numpy as np
 
 
 class HMM:
-    # Universal Dependencies POS tags
-    self.tags = [
-        "ADJ",
-        "ADP",
-        "ADV",
-        "AUX",
-        "CCONJ",
-        "DET",
-        "INTJ",
-        "NOUN",
-        "NUM",
-        "PART",
-        "PRON",
-        "PROPN",
-        "PUNCT",
-        "SCONJ",
-        "SYM",
-        "VERB",
-        "X",
-    ]
-
     def __init__(self, input_sequence):
-        # Los nombres tambien ni idea por que lo de sacar fotos a la pizarra no los no sabemos
-        # Este es la matrix simetrica de tagsXtags
+        # Universal Dependencies POS tags
+        self.tags = [
+            "ADJ",
+            "ADP",
+            "ADV",
+            "AUX",
+            "CCONJ",
+            "DET",
+            "INTJ",
+            "NOUN",
+            "NUM",
+            "PART",
+            "PRON",
+            "PROPN",
+            "PUNCT",
+            "SCONJ",
+            "SYM",
+            "VERB",
+            "X",
+        ]
 
         # Input sequence
         self.w = input_sequence
