@@ -1,5 +1,6 @@
-from typing import List, Tuple, Dict
 from collections import defaultdict
+from typing import List, Tuple, Dict
+
 import numpy as np
 
 
@@ -95,8 +96,8 @@ class HMM:
         self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
     ) -> Dict[str, int]:
         """
-        Parses List[List[[WORD, TYPE]]] to count appearances of each word, 
-        if the word appears less than epsilon it is replaced by [UNK]. The function 
+        Parses List[List[[WORD, TYPE]]] to count appearances of each word,
+        if the word appears less than epsilon it is replaced by [UNK]. The function
         returns a Dict[WORD, INT] with the appearances of each word in the vocabulary.
 
         Input
