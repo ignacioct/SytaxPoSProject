@@ -5,7 +5,25 @@ import numpy as np
 
 class HMM:
     # Universal Dependencies POS tags
-    tags = ['ADJ', 'ADP', 'ADV', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'VERB', 'X']
+    tags = [
+        "ADJ",
+        "ADP",
+        "ADV",
+        "AUX",
+        "CCONJ",
+        "DET",
+        "INTJ",
+        "NOUN",
+        "NUM",
+        "PART",
+        "PRON",
+        "PROPN",
+        "PUNCT",
+        "SCONJ",
+        "SYM",
+        "VERB",
+        "X",
+    ]
 
     def __init__(self, input_sequence):
         # Los nombres tambien ni idea por que lo de sacar fotos a la pizarra no los no sabemos
@@ -72,8 +90,10 @@ class HMM:
                     word_appearance.append(sublist)
 
         return word_appearance
-    
-    def vocab(self, cases: List[List[Tuple[str, str]]], epsilon: int = 5) -> Dict[str, int]:
+
+    def vocab(
+        self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
+    ) -> Dict[str, int]:
         """
         Parses List[List[[WORD, TYPE]]] to count appearances of each word, if the word appears less than epsilon it is replaced by [UNK].
         The function returns a Dict[WORD, INT] with the appearances of each word in the vocabulary.
@@ -92,72 +112,75 @@ class HMM:
             Dictionary containing the vocabulary and each word appearances
         """
 
-        dict_vocab: defaultdict[str, int] = defaultdict(lambda: 0) # Create default dict to count appearances of each word
+        dict_vocab: defaultdict[str, int] = defaultdict(
+            lambda: 0
+        )  # Create default dict to count appearances of each word
 
         # Count appearances of each word
-        for sublist in cases: 
-            for e in sublist: dict_vocab[e[0].lower()] += 1 
-        
+        for sublist in cases:
+            for e in sublist:
+                dict_vocab[e[0].lower()] += 1
+
         # Replace words that appear rarely with [UNK] special token
         kont: int = 0
         vocab: Dict[str, int] = dict()
 
-        for k,v in dict_vocab.items():
+        for k, v in dict_vocab.items():
             if v <= epsilon:
                 kont += v
             else:
                 vocab[k] = v
 
-        if kont!=0:
+        if kont != 0:
             vocab["[UNK]"] = kont
 
         return vocab
 
-    '''
-    Creates the transition matrix A
+    def __fillA(self, word_appearence: List[List[Tuple[str, str]]]) -> None:
+        """
+        Fills up the transition matrix A, which contains the probability of a word being
+        of certain syntactic type in relation with the class of the previous word
 
-    INPUT:
-    word_appearance:List[List[Tuple[str,str]]]
+        Input
+        -----
+        word_appearance:List[List[Tuple[str,str]]]
             List containing all the tuples (word, type) that appears in the parsed file.
 
-
-    '''
-
-    def __createA(self, word_appearence):
+        """
         mat = np.zeros((len(self.tags), len(self.tags)), dtype=int)
         # For every sentence in word_appearence count the words
         for sentece in word_appearence:
             # The first prev_word is X (*)
-            prev_word = 'X'
+            prev_word = "X"
             for i in range(1, len(sentece)):
                 word = sentece[i][1]
                 mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
                 prev_word = word
             # The last word is X (*)
-            word = 'X'
+            word = "X"
             mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
         # Use the counted words to calculate the log probability
-        for i in range(len(mat)):
+        for i, _ in enumerate(mat):
             # If the row is full of 0s then we got NaN in the division, so we put -inf before.
             if sum(mat[i]) == 0:
                 self.A[i] = np.matrix([float("-inf") for w in range(len(mat[i]))])
                 continue
-            #Calculate the log2 probability
+            # Calculate the log2 probability
             for j in range(len(mat[i])):
                 self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
-            print(self.A[i])
-            
-    '''
-    Creates the emission matrix B
 
-    INPUT:
-    word_appearance:List[List[Tuple[str,str]]]
+    def __fillB(self, word_appearance: List[List[Tuple[str, str]]]) -> None:
+        """
+        Fills up the matrix B, which contains the probability of a given word being
+        of each syntactic class.
+
+        Input
+        -----
+        word_appearance:List[List[Tuple[str,str]]]
             List containing all the tuples (word, type) that appears in the parsed file.
 
 
-    '''
-
-    def __createB(self, word_appearance):
+        """
         # Split the input sequence into words
         words = self.w.split()
 
@@ -174,39 +197,32 @@ class HMM:
                     word_idx = words.index(word)
                     B[tag_idx][word_idx] += 1
 
-        # Debug print for B matrix
-        print("Emission Matrix counts:")
-        print(B)
+        # # Debug print for B matrix
+        # print("Emission Matrix counts:")
+        # print(B)
 
         # Use the counted words to calculate the log probability
-        for i in range(len(B)):
-            for j in range(len(B[i])):
+        for i, row in enumerate(B):
+            for j, _ in enumerate(row):
                 # If the column is full of 0s then we got NaN in the division, so we put -inf before.
-                if sum(B[:, j]) == 0:  
-                    self.B[:, j] = np.matrix([float("-inf") for w in range(len(B[:, j]))])
+                if sum(B[:, j]) == 0:
+                    self.B[:, j] = np.matrix(
+                        [float("-inf") for w in range(len(B[:, j]))]
+                    )
                     continue
                 # Calculate the log2 probability
-                self.B[i][j] = np.log2(B[i][j] / sum(B[:,j]))
+                self.B[i][j] = np.log2(B[i][j] / sum(B[:, j]))
 
-
-
-    
     def train(self, path):
         print("Training")
         word_appearence = self.parse_conllu(path)
-        self.__createA(word_appearence)
-        self.__createB(word_appearence)
+        self.__fillA(word_appearence)
+        self.__fillB(word_appearence)
         print(self.tags)
         print(self.A)
         print(self.B)
 
         # self.B = np.zeros() se tendria
-
-
-
-
-
-
 
 
 hmm = HMM("estar pendiente a eso")
