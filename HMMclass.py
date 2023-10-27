@@ -27,11 +27,11 @@ class HMM:
             "X",
         ]
 
-        #Dictionary with the index of each tag
+        # Dictionary with the index of each tag
         self.tag_dict = {k: v for v, k in enumerate(self.tags)}
 
         # Input sequence
-        self.w = input_sequence
+        self.w = input_sequence.split()
 
         # Transition probability matrix
         self.A = np.zeros((len(self.tags), len(self.tags)))
@@ -39,8 +39,8 @@ class HMM:
         # Observation likelihoods
         self.B = None
 
-        # Initial probability distribution over states
-        self.pi = 0
+        # Dictionary with the index of each word in the vocabulary
+        self.vocab_dict = Dict[str, int]
 
     def parse_conllu(self, path: str) -> List[List[Tuple[str, str]]]:
         """
@@ -92,12 +92,11 @@ class HMM:
 
         return word_appearance
 
-    def vocab_fillB(
-        self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
-    ) -> None:
+    def vocab_fillB(self, cases: List[List[Tuple[str, str]]], epsilon: int = 5) -> None:
         """
         Parses List[List[[WORD, TYPE]]] to create a vocalulary of words. In addition,
-        if the word appears less than epsilon it is replaced by [UNK]. Vocabulary is used to create and fill B matrix (Mat[WORD][TYPE]).
+        if the word appears less than epsilon it is replaced by [UNK].
+        Vocabulary is used to create and fill B matrix (Mat[WORD][TYPE]).
 
         Input
         -----
@@ -131,12 +130,11 @@ class HMM:
         if kont != 0:
             vocab["[UNK]"] = kont
 
-        self.vocab = vocab
         # Create a dictionary with the index of each word
         self.vocab_dict = {k: v for v, k in enumerate(vocab.keys())}
 
-        #Fill B matrix
-        B = np.zeros((len(self.tags), len(self.vocab)))
+        # Fill B matrix
+        B = np.zeros((len(self.tags), len(vocab)))
 
         for sublist in cases:
             for e in sublist:
@@ -152,13 +150,11 @@ class HMM:
             for j, _ in enumerate(row):
                 # If the column is full of 0s then we got NaN in the division, so we put -inf before.
                 if sum(B[:, j]) == 0:
-                    B[:, j] = np.matrix(
-                        [float("-inf") for w in range(len(B[:, j]))]
-                    )
+                    B[:, j] = np.matrix([float("-inf") for w in range(len(B[:, j]))])
                     continue
                 # Calculate the log2 probability
                 B[i][j] = np.log2(B[i][j] / sum(B[:, j]))
-        
+
         self.B = B
 
     def __fillA(self, word_appearence: List[List[Tuple[str, str]]]) -> None:
@@ -195,18 +191,62 @@ class HMM:
                 self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
 
     def train(self, path):
-        print("Training")
+        print("Training the model")
+
+        # Parse the training data
         word_appearence = self.parse_conllu(path)
+
+        # Filling tables A and B. Vocab is also obtained while filling B
         self.__fillA(word_appearence)
         self.vocab_fillB(word_appearence)
-        print(self.tags)
-        print(self.A)
-        print(self.B)
 
-        # self.B = np.zeros() se tendria
+    def viterbi(self):
+        """
+        Apply the Viterbi algorithm to calculate the best path and the probability.
+        By doing so, the PoS tagging of the sentence is obtained.
+
+        Returns
+        -------
+        tags: Dict[str:str]
+            Dictionary with the words of the sentence and the obtained PoS tags.
+
+        probability: int
+            Calculated probability of the best path, which correspond to the obtained tags.
+        """
+
+        # We will use a subset of B, only with the words that are passed in the sequence
+        indeces = []
+        for word in self.w:
+            if word in self.vocab_dict.keys():
+                indeces.append(self.vocab_dict[word])
+            else:
+                indeces.append(self.vocab_dict["[UNK]"])
+
+        submatrix_B = self.B[:, indeces]
+
+        # Initialize the Viterbi matrix and backpointer matrix
+        viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
+        backpointer = np.zeros((len(self.tags), len(self.w)), dtype=int)
+
+        # Initialize the first column of the Viterbi matrix
+        viterbi_matrix[:, 0] = self.A[0] * submatrix_B[:, 0]
+
+        print(viterbi_matrix)
+        print(submatrix_B)
+
+        # Fill in the Viterbi matrix and backpointer matrix
+        for t in range(1, len(self.w)):
+            for q in range(len(self.tags)):
+                viterbi_matrix[q, t] = (
+                    np.max(viterbi_matrix[:, t - 1])
+                    * self.A[np.argmax(viterbi_matrix[:, t - 1]), q]
+                    * submatrix_B[q:t]
+                )
+
+        print(viterbi_matrix)
 
 
-hmm = HMM("estar pendiente a eso")
-print(hmm.parse_conllu("UD_Spanish-AnCora/es_ancora-ud-dev.conllu"))
+hmm = HMM("esto no es perro")
 # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
 hmm.train("UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+hmm.viterbi()
