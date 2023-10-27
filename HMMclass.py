@@ -27,6 +27,9 @@ class HMM:
             "X",
         ]
 
+        #Dictionary with the index of each tag
+        self.tag_dict = {k: v for v, k in enumerate(self.tags)}
+
         # Input sequence
         self.w = input_sequence
 
@@ -34,7 +37,7 @@ class HMM:
         self.A = np.zeros((len(self.tags), len(self.tags)))
 
         # Observation likelihoods
-        self.B = np.zeros((len(self.tags), len(self.w.split())))
+        self.B = None
 
         # Initial probability distribution over states
         self.pi = 0
@@ -89,13 +92,12 @@ class HMM:
 
         return word_appearance
 
-    def vocab(
+    def vocab_fillB(
         self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
-    ) -> Dict[str, int]:
+    ) -> None:
         """
-        Parses List[List[[WORD, TYPE]]] to count appearances of each word,
-        if the word appears less than epsilon it is replaced by [UNK]. The function
-        returns a Dict[WORD, INT] with the appearances of each word in the vocabulary.
+        Parses List[List[[WORD, TYPE]]] to create a vocalulary of words. In addition,
+        if the word appears less than epsilon it is replaced by [UNK]. Vocabulary is used to create and fill B matrix (Mat[WORD][TYPE]).
 
         Input
         -----
@@ -105,10 +107,6 @@ class HMM:
         epsilon: int
             Minimum appearances that a word has to have to be in the vocabulary.
 
-        Returns
-        -------
-        vocab: Dict[str, int]
-            Dictionary containing the vocabulary and each word appearances
         """
 
         dict_vocab: defaultdict[str, int] = defaultdict(
@@ -133,7 +131,35 @@ class HMM:
         if kont != 0:
             vocab["[UNK]"] = kont
 
-        return vocab
+        self.vocab = vocab
+        # Create a dictionary with the index of each word
+        self.vocab_dict = {k: v for v, k in enumerate(vocab.keys())}
+
+        #Fill B matrix
+        B = np.zeros((len(self.tags), len(self.vocab)))
+
+        for sublist in cases:
+            for e in sublist:
+                tag_idx = self.tag_dict[e[1]]
+                if e[0].lower() in self.vocab_dict:
+                    word_idx = self.vocab_dict[e[0].lower()]
+                else:
+                    word_idx = self.vocab_dict["[UNK]"]
+                B[tag_idx][word_idx] += 1
+
+        # Use the counted words to calculate the log probability
+        for i, row in enumerate(B):
+            for j, _ in enumerate(row):
+                # If the column is full of 0s then we got NaN in the division, so we put -inf before.
+                if sum(B[:, j]) == 0:
+                    B[:, j] = np.matrix(
+                        [float("-inf") for w in range(len(B[:, j]))]
+                    )
+                    continue
+                # Calculate the log2 probability
+                B[i][j] = np.log2(B[i][j] / sum(B[:, j]))
+        
+        self.B = B
 
     def __fillA(self, word_appearence: List[List[Tuple[str, str]]]) -> None:
         """
@@ -153,11 +179,11 @@ class HMM:
             prev_word = "X"
             for i in range(1, len(sentece)):
                 word = sentece[i][1]
-                mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
+                mat[self.tag_dict[prev_word]][self.tag_dict[word]] += 1
                 prev_word = word
             # The last word is X (*)
             word = "X"
-            mat[self.tags.index(prev_word)][self.tags.index(word)] += 1
+            mat[self.tag_dict[prev_word]][self.tag_dict[word]] += 1
         # Use the counted words to calculate the log probability
         for i, _ in enumerate(mat):
             # If the row is full of 0s then we got NaN in the division, so we put -inf before.
@@ -168,55 +194,11 @@ class HMM:
             for j in range(len(mat[i])):
                 self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
 
-    def __fillB(self, word_appearance: List[List[Tuple[str, str]]]) -> None:
-        """
-        Fills up the matrix B, which contains the probability of a given word being
-        of each syntactic class.
-
-        Input
-        -----
-        word_appearance:List[List[Tuple[str,str]]]
-            List containing all the tuples (word, type) that appears in the parsed file.
-
-
-        """
-        # Split the input sequence into words
-        words = self.w.split()
-
-        num_tags = len(self.tags)
-        num_words = len(words)
-        B = np.zeros((num_tags, num_words))
-
-        # Count word occurrences given their corresponding tags
-        for sentence in word_appearance:
-            for word, tag in sentence:
-                # If the word is in the input we count it in its index position
-                if tag in self.tags and word in words:
-                    tag_idx = self.tags.index(tag)
-                    word_idx = words.index(word)
-                    B[tag_idx][word_idx] += 1
-
-        # # Debug print for B matrix
-        # print("Emission Matrix counts:")
-        # print(B)
-
-        # Use the counted words to calculate the log probability
-        for i, row in enumerate(B):
-            for j, _ in enumerate(row):
-                # If the column is full of 0s then we got NaN in the division, so we put -inf before.
-                if sum(B[:, j]) == 0:
-                    self.B[:, j] = np.matrix(
-                        [float("-inf") for w in range(len(B[:, j]))]
-                    )
-                    continue
-                # Calculate the log2 probability
-                self.B[i][j] = np.log2(B[i][j] / sum(B[:, j]))
-
     def train(self, path):
         print("Training")
         word_appearence = self.parse_conllu(path)
         self.__fillA(word_appearence)
-        self.__fillB(word_appearence)
+        self.vocab_fillB(word_appearence)
         print(self.tags)
         print(self.A)
         print(self.B)
