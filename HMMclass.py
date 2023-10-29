@@ -33,8 +33,11 @@ class HMM:
         # Input sequence
         self.w = input_sequence.split()
 
+        # Smoothing value
+        self.smooth_value = 0
+
         # Transition probability matrix
-        self.A = np.zeros((len(self.tags), len(self.tags)))
+        self.A = np.full((len(self.tags), len(self.tags)), self.smooth_value)
 
         # Observation likelihoods
         self.B = None
@@ -134,7 +137,7 @@ class HMM:
         self.vocab_dict = {k: v for v, k in enumerate(vocab.keys())}
 
         # Fill B matrix
-        B = np.zeros((len(self.tags), len(vocab)))
+        B = np.full((len(self.tags), len(vocab)), self.smooth_value)
 
         for sublist in cases:
             for e in sublist:
@@ -146,14 +149,13 @@ class HMM:
                 B[tag_idx][word_idx] += 1
 
         # Use the counted words to calculate the log probability
-        for i, row in enumerate(B):
-            for j, _ in enumerate(row):
+        for i in range(B.shape[1]):
                 # If the column is full of 0s then we got NaN in the division, so we put -inf before.
-                if sum(B[:, j]) == 0:
-                    B[:, j] = np.matrix([float("-inf") for w in range(len(B[:, j]))])
-                    continue
-                # Calculate the log2 probability
-                B[i][j] = np.log2(B[i][j] / sum(B[:, j]))
+                if sum(B[:, i])==0:
+                    B[:, i] = np.full((len(self.tags)), float("-inf"))
+                else:
+                    # Calculate the log2 probability
+                    B[:,i] = np.log2(B[:,i] / sum(B[:, i]))
 
         self.B = B
 
@@ -168,7 +170,7 @@ class HMM:
             List containing all the tuples (word, type) that appears in the parsed file.
 
         """
-        mat = np.zeros((len(self.tags), len(self.tags)), dtype=int)
+        mat = np.full((len(self.tags), len(self.tags)), self.smooth_value)
         # For every sentence in word_appearence count the words
         for sentece in word_appearence:
             # The first prev_word is X (*)
@@ -181,14 +183,14 @@ class HMM:
             word = "X"
             mat[self.tag_dict[prev_word]][self.tag_dict[word]] += 1
         # Use the counted words to calculate the log probability
-        for i, _ in enumerate(mat):
+
+        for i in range(mat.shape[0]):
             # If the row is full of 0s then we got NaN in the division, so we put -inf before.
-            if sum(mat[i]) == 0:
-                self.A[i] = np.matrix([float("-inf") for w in range(len(mat[i]))])
-                continue
-            # Calculate the log2 probability
-            for j in range(len(mat[i])):
-                self.A[i][j] = np.log2(mat[i][j] / sum(mat[i]))
+            if sum(mat[i])==0:
+                self.A[i] = np.full((len(self.tags)), float("-inf"))
+            else:
+                # Calculate the log2 probability
+                self.A[i,:] = np.log2(mat[i,:] / sum(mat[i]))
 
     def train(self, path):
         print("Training the model")
@@ -197,8 +199,9 @@ class HMM:
         word_appearence = self.parse_conllu(path)
 
         # Filling tables A and B. Vocab is also obtained while filling B
-        self.__fillA(word_appearence)
         self.vocab_fillB(word_appearence)
+        self.__fillA(word_appearence)
+        
 
     def viterbi(self):
         """
@@ -224,6 +227,12 @@ class HMM:
 
         submatrix_B = self.B[:, indeces]
 
+        print(indeces)
+
+        print(submatrix_B)
+
+        print(submatrix_B.shape)
+
         # Initialize the Viterbi matrix and backpointer matrix
         viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
         backpointer = np.zeros((len(self.tags), len(self.w)), dtype=int)
@@ -234,19 +243,30 @@ class HMM:
         print(viterbi_matrix)
         print(submatrix_B)
 
+        pos = []
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(self.w)):
             for q in range(len(self.tags)):
-                viterbi_matrix[q, t] = (
-                    np.max(viterbi_matrix[:, t - 1])
-                    * self.A[np.argmax(viterbi_matrix[:, t - 1]), q]
-                    * submatrix_B[q:t]
-                )
+                q1 = np.argmax(viterbi_matrix[:, t - 1])
 
-        print(viterbi_matrix)
+                max_pre = viterbi_matrix[q1, t - 1]
+                A_q1_q = self.A[q1, q]
+                bq = submatrix_B[q, t]
 
+                lag = max_pre + A_q1_q + bq
 
-hmm = HMM("esto no es perro")
+                viterbi_matrix[q, t] = lag
+
+        print(lag)
+
+        for t in range(len(self.w) - 1, -1, -1):
+            lag = np.argmax(viterbi_matrix[:, t])
+            pos.append(self.tags[lag])
+
+        
+        print(pos)
+
+hmm = HMM("hola que tal")
 # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
-hmm.train("UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+hmm.train("/home/eazurmendi/gitRepo/Syntaxis lana/SytaxPoSProject/UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
 hmm.viterbi()
