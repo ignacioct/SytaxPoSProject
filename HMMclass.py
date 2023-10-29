@@ -227,22 +227,12 @@ class HMM:
 
         submatrix_B = self.B[:, indeces]
 
-        print(indeces)
-
-        print(submatrix_B)
-
-        print(submatrix_B.shape)
-
         # Initialize the Viterbi matrix and backpointer matrix
         viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
         backpointer = np.zeros((len(self.tags), len(self.w)), dtype=int)
 
         # Initialize the first column of the Viterbi matrix
-        viterbi_matrix[:, 0] = self.A[0] * submatrix_B[:, 0]
-
-        print(viterbi_matrix)
-        print(submatrix_B)
-
+        viterbi_matrix[:, 0] = self.A[0] + submatrix_B[:, 0]
         pos = []
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(self.w)):
@@ -257,16 +247,15 @@ class HMM:
 
                 viterbi_matrix[q, t] = lag
 
-        print(lag)
+        print(np.exp2(lag))
 
         for t in range(len(self.w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
             pos.append(self.tags[lag])
-
         
         print(pos)
 
-hmm = HMM("hola que tal")
+hmm = HMM("Mi perro es negro")
 # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
-hmm.train("/home/eazurmendi/gitRepo/Syntaxis lana/SytaxPoSProject/UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+hmm.train("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
 hmm.viterbi()
