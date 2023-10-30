@@ -138,6 +138,7 @@ class HMM:
 
         # Fill B matrix
         B = np.full((len(self.tags), len(vocab)), self.smooth_value)
+        # self.B = np.full((len(self.tags), len(vocab)), self.smooth_value)
 
         for sublist in cases:
             for e in sublist:
@@ -150,12 +151,14 @@ class HMM:
 
         # Use the counted words to calculate the log probability
         for i in range(B.shape[1]):
+            
                 # If the column is full of 0s then we got NaN in the division, so we put -inf before.
                 if sum(B[:, i])==0:
                     B[:, i] = np.full((len(self.tags)), float("-inf"))
                 else:
                     # Calculate the log2 probability
                     B[:,i] = np.log2(B[:,i] / sum(B[:, i]))
+
 
         self.B = B
 
@@ -226,13 +229,15 @@ class HMM:
                 indeces.append(self.vocab_dict["[UNK]"])
 
         submatrix_B = self.B[:, indeces]
+        # print(submatrix_B)
 
         # Initialize the Viterbi matrix and backpointer matrix
         viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
         backpointer = np.zeros((len(self.tags), len(self.w)), dtype=int)
 
         # Initialize the first column of the Viterbi matrix
-        viterbi_matrix[:, 0] = self.A[0] + submatrix_B[:, 0]
+        viterbi_matrix[:, 0] = [-99999 if submatrix_B[i, 0] < -21474836 or self.A[0,i] < -214748368 else self.A[0,i] + submatrix_B[i, 0] for i in range(len(self.A))]
+        # print(viterbi_matrix)
         pos = []
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(self.w)):
@@ -246,8 +251,8 @@ class HMM:
                 lag = max_pre + A_q1_q + bq
 
                 viterbi_matrix[q, t] = lag
-
-        print(np.exp2(lag))
+        #print(viterbi_matrix)
+        #print(np.exp2(lag))
 
         for t in range(len(self.w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
@@ -255,7 +260,7 @@ class HMM:
         
         print(pos)
 
-hmm = HMM("Mi perro es negro")
+hmm = HMM("el perro ver azul")
 # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
-hmm.train("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
 hmm.viterbi()
