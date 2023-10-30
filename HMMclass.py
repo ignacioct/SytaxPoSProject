@@ -111,25 +111,24 @@ class HMM:
 
         """
 
-        dict_vocab: defaultdict[str, int] = defaultdict(
-            lambda: 0
-        )  # Create default dict to count appearances of each word
+        # Create default dict to count appearances of each word
+        dict_vocab: defaultdict[str, int] = defaultdict(lambda: 0)
 
         # Count appearances of each word
         for sublist in cases:
             for e in sublist:
                 dict_vocab[e[0].lower()] += 1
 
-        # Replace words that appear rarely with [UNK] special token
         kont: int = 0
         vocab: Dict[str, int] = dict()
 
+        # Fill the vocabulary with word:frequency
         for k, v in dict_vocab.items():
             if v <= epsilon:
                 kont += v
             else:
                 vocab[k] = v
-
+        # Replace words that appear rarely with [UNK] special token
         if kont != 0:
             vocab["[UNK]"] = kont
 
@@ -138,7 +137,6 @@ class HMM:
 
         # Fill B matrix
         B = np.full((len(self.tags), len(vocab)), self.smooth_value)
-        # self.B = np.full((len(self.tags), len(vocab)), self.smooth_value)
 
         for sublist in cases:
             for e in sublist:
@@ -151,14 +149,12 @@ class HMM:
 
         # Use the counted words to calculate the log probability
         for i in range(B.shape[1]):
-            
-                # If the column is full of 0s then we got NaN in the division, so we put -inf before.
-                if sum(B[:, i])==0:
-                    B[:, i] = np.full((len(self.tags)), float("-inf"))
-                else:
-                    # Calculate the log2 probability
-                    B[:,i] = np.log2(B[:,i] / sum(B[:, i]))
-
+            # If the column is full of 0s then we got NaN in the division, so we put -inf before.
+            if sum(B[:, i]) == 0:
+                B[:, i] = np.full((len(self.tags)), float("-inf"))
+            else:
+                # Calculate the log2 probability
+                B[:, i] = np.log2(B[:, i] / sum(B[:, i]))
 
         self.B = B
 
@@ -189,11 +185,11 @@ class HMM:
 
         for i in range(mat.shape[0]):
             # If the row is full of 0s then we got NaN in the division, so we put -inf before.
-            if sum(mat[i])==0:
+            if sum(mat[i]) == 0:
                 self.A[i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                self.A[i,:] = np.log2(mat[i,:] / sum(mat[i]))
+                self.A[i, :] = np.log2(mat[i, :] / sum(mat[i]))
 
     def train(self, path):
         print("Training the model")
@@ -204,9 +200,8 @@ class HMM:
         # Filling tables A and B. Vocab is also obtained while filling B
         self.vocab_fillB(word_appearence)
         self.__fillA(word_appearence)
-        
 
-    def viterbi(self):
+    def viterbi(self) -> Tuple[Dict[str, str], int]:
         """
         Apply the Viterbi algorithm to calculate the best path and the probability.
         By doing so, the PoS tagging of the sentence is obtained.
@@ -216,7 +211,7 @@ class HMM:
         tags: Dict[str:str]
             Dictionary with the words of the sentence and the obtained PoS tags.
 
-        probability: int
+        probability: float
             Calculated probability of the best path, which correspond to the obtained tags.
         """
 
@@ -229,38 +224,64 @@ class HMM:
                 indeces.append(self.vocab_dict["[UNK]"])
 
         submatrix_B = self.B[:, indeces]
-        # print(submatrix_B)
 
-        # Initialize the Viterbi matrix and backpointer matrix
+        # Initialize the Viterbi matrix
         viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
-        backpointer = np.zeros((len(self.tags), len(self.w)), dtype=int)
 
-        # Initialize the first column of the Viterbi matrix
-        viterbi_matrix[:, 0] = [-99999 if submatrix_B[i, 0] < -21474836 or self.A[0,i] < -214748368 else self.A[0,i] + submatrix_B[i, 0] for i in range(len(self.A))]
-        # print(viterbi_matrix)
+        # Fill up the first column of the Viterbi matrix
+        # Handling specially the - infinite cases
+        viterbi_matrix[:, 0] = [
+            -99999
+            if submatrix_B[i, 0] < -21474836 or self.A[0, i] < -214748368
+            else self.A[0, i] + submatrix_B[i, 0]
+            for i in range(len(self.A))
+        ]
+
         pos = []
+
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(self.w)):
             for q in range(len(self.tags)):
+
+                # Obtain the row with the highest probability in the previous step
                 q1 = np.argmax(viterbi_matrix[:, t - 1])
 
+                # Obtain the probability of the previous step
                 max_pre = viterbi_matrix[q1, t - 1]
+
+                # Getting the corresponding values in matrices A and B
                 A_q1_q = self.A[q1, q]
                 bq = submatrix_B[q, t]
 
+                # Probability sum
                 lag = max_pre + A_q1_q + bq
 
+                # Filling the Viterbi matrix
                 viterbi_matrix[q, t] = lag
-        #print(viterbi_matrix)
-        #print(np.exp2(lag))
 
+        # Bactrack to obtain the path followed. It must be reversed aftwerwards.
         for t in range(len(self.w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
             pos.append(self.tags[lag])
-        
-        print(pos)
 
-hmm = HMM("el perro ver azul")
-# print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
-hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
-hmm.viterbi()
+        tags = {}  # Output tag dictionary
+
+        pos.reverse()  # Reversing the position list
+
+        for word, tag in zip(self.w, pos):
+            tags[word] = tag
+
+        print(viterbi_matrix)
+        return tags, float(np.max(viterbi_matrix[:, len(self.w) - 1]))
+
+def main():
+    hmm = HMM("Alicia come carne")
+    # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
+    hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
+    print(hmm.viterbi())
+
+if __name__ == "__main__":
+    main()
+
+
+
