@@ -271,7 +271,6 @@ class HMM:
         for word, tag in zip(self.w, pos):
             tags[word] = tag
 
-        print(viterbi_matrix)
         return tags, float(np.max(viterbi_matrix[:, len(self.w) - 1]))
 
 def main():
