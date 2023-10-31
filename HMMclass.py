@@ -90,7 +90,7 @@ class HMM:
                     # Separating the line into tabs
                     split_line = line.split("\t")
                     if split_line[3] not in exceptions:
-                        sublist.append((split_line[2], split_line[3]))
+                        sublist.append((split_line[1], split_line[3]))
 
                 # End of the entity
                 if entity is True and line.strip() == "":
@@ -228,6 +228,7 @@ class HMM:
                 indeces.append(self.vocab_dict["[UNK]"])
 
         submatrix_B = self.B[:, indeces]
+        print(submatrix_B)
 
         # Initialize the Viterbi matrix
         viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
@@ -278,8 +279,8 @@ class HMM:
         return tags, float(np.max(viterbi_matrix[:, len(self.w) - 1]))
 
 def main():
-    #Usando subir en vez de subieron funciona, parece ser que el problema esta en usar el lema
-    hmm = HMM("Las reservas de oro y divisas de Rusia subir 800 millones de dólares")
+    # Proper names meeh
+    hmm = HMM("Jordi")
 
     #hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
