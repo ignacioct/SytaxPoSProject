@@ -1,5 +1,6 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
+import sys
 
 import numpy as np
 
@@ -44,6 +45,9 @@ class HMM:
 
         # Dictionary with the index of each word in the vocabulary
         self.vocab_dict = Dict[str, int]
+
+        #Epsilon value to avoid division by 0
+        self.epsilon = sys.float_info.min
 
     def parse_conllu(self, path: str) -> List[List[Tuple[str, str]]]:
         """
@@ -154,7 +158,7 @@ class HMM:
                 B[:, i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                B[:, i] = np.log2(B[:, i] / sum(B[:, i]))
+                B[:, i] = np.log2(B[:, i] / (sum(B[:, i]))+self.epsilon)
 
         self.B = B
 
@@ -189,7 +193,7 @@ class HMM:
                 self.A[i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                self.A[i, :] = np.log2(mat[i, :] / sum(mat[i]))
+                self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i]))+self.epsilon)
 
     def train(self, path):
         print("Training the model")
@@ -208,8 +212,8 @@ class HMM:
 
         Returns
         -------
-        tags: Dict[str:str]
-            Dictionary with the words of the sentence and the obtained PoS tags.
+        tags: Array[(str,str)]
+            Array with the words of the sentence and the obtained PoS tags.
 
         probability: float
             Calculated probability of the best path, which correspond to the obtained tags.
@@ -264,18 +268,20 @@ class HMM:
             lag = np.argmax(viterbi_matrix[:, t])
             pos.append(self.tags[lag])
 
-        tags = {}  # Output tag dictionary
+        tags = []  # Output tag dictionary
 
         pos.reverse()  # Reversing the position list
 
         for word, tag in zip(self.w, pos):
-            tags[word] = tag
+            tags.append((word, tag))
 
         return tags, float(np.max(viterbi_matrix[:, len(self.w) - 1]))
 
 def main():
-    hmm = HMM("Alicia come carne")
-    # print(hmm.parse_conllu("UD_Basque-BDT/eu_bdt-ud-dev.conllu"))
+    #Usando subir en vez de subieron funciona, parece ser que el problema esta en usar el lema
+    hmm = HMM("Las reservas de oro y divisas de Rusia subir 800 millones de dólares")
+
+    #hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
     print(hmm.viterbi())
 
