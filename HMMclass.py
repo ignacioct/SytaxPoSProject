@@ -165,7 +165,7 @@ class HMM:
 
         self.B = B
 
-    def __fillA(self, word_appearence: List[List[Tuple[str, str]]]) -> None:
+    def fillA(self, word_appearence: List[List[Tuple[str, str]]]) -> None:
         """
         Fills up the transition matrix A, which contains the probability of a word being
         of certain syntactic type in relation with the class of the previous word
@@ -331,7 +331,7 @@ class HMM:
 
         # Filling tables A and B. Vocab is also obtained while filling B
         self.vocab_fillB(word_appearence)
-        self.__fillA(word_appearence)
+        self.fillA(word_appearence)
 
     def make_pred(
             self, texts: List[str]
