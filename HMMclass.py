@@ -1,7 +1,7 @@
 from collections import defaultdict
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 import sys
-#from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score
 import numpy as np
 
 
@@ -36,7 +36,7 @@ class HMM:
         self.tag_dict = {k: v for v, k in enumerate(self.tags)}
 
         # Smoothing value
-        self.smooth_value = 0
+        self.smooth_value = 1.0
 
         # Transition probability matrix
         self.A = np.full((len(self.tags), len(self.tags)), self.smooth_value)
@@ -196,10 +196,15 @@ class HMM:
                 # Calculate the log2 probability
                 self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i]))+self.epsilon)
 
-    def viterbi(self, sentence) -> Tuple[Dict[str, str], int]:
+    def viterbi(self, sentence: Union[str, List[str]]) -> Tuple[Dict[str, str], int]:
         """
-        Apply the Viterbi algorithm to calculate the best path and the probability.
+        Apply the Viterbi algorithm to calculate the best path and the log probability.
         By doing so, the PoS tagging of the sentence is obtained.
+
+        Input
+        -----
+        sentence: str or List[str]
+            Sentence to be tagged. It can be a string or a list of words.
 
         Returns
         -------
@@ -207,7 +212,7 @@ class HMM:
             Array with the words of the sentence and the obtained PoS tags.
 
         probability: float
-            Calculated probability of the best path, which correspond to the obtained tags.
+            Calculated log probability of the best path, which correspond to the obtained tags.
         """
 
         if type(sentence) is str:
@@ -215,9 +220,7 @@ class HMM:
         elif type(sentence) is list or type(sentence) is tuple:
             w = list(map(str.lower, sentence))
         else:
-            print("Unknown type")
-            print(type(sentence))
-            exit()
+            print("Unexpected type: ", type(sentence))
             w = sentence
 
         # We will use a subset of B, only with the words that are passed in the sequence
@@ -241,7 +244,7 @@ class HMM:
             else self.A[0, i] + submatrix_B[i, 0]
             for i in range(len(self.A))
         ]
-        lag = 0
+        log_prob = 0
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(w)):
             for q in range(len(self.tags)):
@@ -257,13 +260,13 @@ class HMM:
                 bq = submatrix_B[q, t]
 
                 # Probability sum
-                lag = max_pre + A_q1_q + bq
+                log_prob = max_pre + A_q1_q + bq
 
                 # Filling the Viterbi matrix
-                viterbi_matrix[q, t] = lag
+                viterbi_matrix[q, t] = log_prob
 
         # The last probability of viterbi matrix is the los prob of the whole sentence
-        log_prob = lag
+        pos_prob = log_prob
 
         # Initialize tags list
         tags = []
@@ -276,18 +279,46 @@ class HMM:
 
         tags.reverse()  # Reversing the position list
 
-        return tags, log_prob
+        return tags, pos_prob
 
-    def text_and_tags(self, conllu):
+    def text_and_tags(self, conllu: List[List[Tuple[str, str]]]) -> Tuple[List[str], List[str]]:
+        """
+        Parses List[List[[WORD, TYPE]]] to get the sentences and the PoS tags.
+
+        Input
+        -----
+        conllu: List[List[Tuple[str, str]]]
+            List containing all the tuples (word, type) that appears in the parsed file.
+        
+        Returns
+        -------
+        sentences: List[str]
+            List of sentences.
+        
+        tags: List[str]
+            List of PoS tags.
+        """
         sentences = []
         tags = []
+        # For every list get the sentence and tags
         for sublist in conllu:
+            # Unzip the list of tuples to get the sentence and the tags
             sentece, tag = list(zip(*sublist))
+            # Add the sentence and the tags to the lists
             sentences.append(sentece)
             tags.append(tag)
+
         return sentences, tags
 
-    def train(self, path):
+    def train(self, path: str):
+        """
+        Trains the HMM model with the data in the given path.
+
+        Input
+        -----
+        path: str
+            Path to the .conllu file to be parsed.
+        """
         print("Training the model: ", self.name)
 
         # Parse the training data
@@ -297,26 +328,77 @@ class HMM:
         self.vocab_fillB(word_appearence)
         self.__fillA(word_appearence)
 
-    def make_pred(self, texts):
+    def make_pred(self, texts: List[str]) -> List[List[str]]:
+        """
+        Makes the prediction of the PoS tags for the given sentences.
+
+        Input
+        -----
+        texts: List[str]
+            List of texts to be tagged.
+        
+        Returns
+        -------
+        pred: List[List[str]]
+            List of PoS tags for each sentence.
+        """
+        # For each sentence get the PoS tags calling to viterbi function.
+        # Then zip the result to get only the list of tags.
         return list(map(lambda text: list(zip(*self.viterbi(text)[0]))[1], texts))
 
-    def test(self, path):
+    def test(self, path: str) -> float:
+        """
+        Tests the model with the data in the given path. Then calculate the micro version of the F1 score.
 
+        Input
+        -----
+        path: str
+            Path to the .conllu file to use it to test the model.
+        
+        Returns
+        -------
+        f1_score: float
+            Calculated F1 score of the model.
+        """
+        print("Testing the model: ", self.name)
+        # Parse the .conllu file to get the sentences and the tags 
         dev_conllu = self.parse_conllu(path)
 
+        # Get the sentences and the tags of the parsed file
         texts, gold = self.text_and_tags(dev_conllu)
 
+        # Get the predictions of the model
         pred = self.make_pred(texts)
 
-        f1_score =  0.0 #f1_score(gold, pred, average="micro")
+        # Calculate the F1 score of the model
+        f1_value =  f1_score(gold, pred, average="micro")
 
-        print("F1 score: ", f1_score)
+        print("F1 score: ", f1_value)
 
-        return f1_score
+        return f1_value
 
-    def pos_tagging(self, text):
+    def pos_tagging(self, text: str) -> Tuple[List[str], float]:
+        """
+        Tags the given sentence with the model.
+
+        Input
+        -----
+        text: str
+            Sentence to be tagged.
+        
+        Returns
+        -------
+        tags: List[str]
+            List of PoS tags for the given sentence.
+        """
+        print("Tagging the sentence: ", text)
+
+        # Divide the sentence into words
         w = text.lower().split(" ")
+
+        # Get the PoS tags and the log probability
         tags, log_prob = self.viterbi(w)
+
         print("POS: ", tags)
         print("Log probability: ", log_prob)
         return tags, log_prob
@@ -330,7 +412,7 @@ def main():
 
     hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
 
-    hmm.pos_tagging("El gato es negro")
+    hmm.pos_tagging("El gato vive aqui")
 
 if __name__ == "__main__":
     main()
