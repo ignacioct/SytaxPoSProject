@@ -1,14 +1,14 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
 import sys
-#from sklearn.metrics import f1_score
+
+# from sklearn.metrics import f1_score
 import numpy as np
 
 
 class HMM:
     def __init__(self, name):
-
-        #name of the hmm
+        # name of the hmm
         self.name = name
 
         # Universal Dependencies POS tags
@@ -47,7 +47,7 @@ class HMM:
         # Dictionary with the index of each word in the vocabulary
         self.vocab_dict = Dict[str, int]
 
-        #Epsilon value to avoid division by 0
+        # Epsilon value to avoid division by 0
         self.epsilon = sys.float_info.min
 
     def parse_conllu(self, path: str) -> List[List[Tuple[str, str]]]:
@@ -159,7 +159,7 @@ class HMM:
                 B[:, i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                B[:, i] = np.log2(B[:, i] / (sum(B[:, i]))+self.epsilon)
+                B[:, i] = np.log2(B[:, i] / (sum(B[:, i])) + self.epsilon)
 
         self.B = B
 
@@ -194,7 +194,7 @@ class HMM:
                 self.A[i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i]))+self.epsilon)
+                self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i])) + self.epsilon)
 
     def viterbi(self, sentence) -> Tuple[Dict[str, str], int]:
         """
@@ -218,7 +218,6 @@ class HMM:
             print("Unknown type")
             print(type(sentence))
             exit()
-            w = sentence
 
         # We will use a subset of B, only with the words that are passed in the sequence
         indeces = []
@@ -245,7 +244,6 @@ class HMM:
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(w)):
             for q in range(len(self.tags)):
-
                 # Obtain the row with the highest probability in the previous step
                 q1 = np.argmax(viterbi_matrix[:, t - 1])
 
@@ -272,13 +270,16 @@ class HMM:
         for t in range(len(w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
             # Add [WORD, TAG] tupla in the list
-            tags.append((w[t],self.tags[lag]))
+            tags.append((w[t], self.tags[lag]))
 
         tags.reverse()  # Reversing the position list
 
         return tags, log_prob
 
-    def text_and_tags(self, conllu):
+    def text_and_tags(
+        self, conllu: List[List[Tuple[str, str]]]
+    ) -> Tuple[List[str], List[str]]:
+        
         sentences = []
         tags = []
         for sublist in conllu:
@@ -287,7 +288,7 @@ class HMM:
             tags.append(tag)
         return sentences, tags
 
-    def train(self, path):
+    def train(self, path: str):
         print("Training the model: ", self.name)
 
         # Parse the training data
@@ -301,14 +302,14 @@ class HMM:
         return list(map(lambda text: list(zip(*self.viterbi(text)[0]))[1], texts))
 
     def test(self, path):
-
+        
         dev_conllu = self.parse_conllu(path)
 
         texts, gold = self.text_and_tags(dev_conllu)
 
         pred = self.make_pred(texts)
 
-        f1_score =  0.0 #f1_score(gold, pred, average="micro")
+        f1_score = 0.0  # f1_score(gold, pred, average="micro")
 
         print("F1 score: ", f1_score)
 
@@ -321,19 +322,19 @@ class HMM:
         print("Log probability: ", log_prob)
         return tags, log_prob
 
+
 def main():
+
     # Proper names meeh
     hmm = HMM("ESP")
 
-    #hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
+    # hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
 
     hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
 
     hmm.pos_tagging("El gato es negro")
 
+
 if __name__ == "__main__":
     main()
-
-
-
