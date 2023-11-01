@@ -1,13 +1,14 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict, Union
 import sys
-from sklearn.metrics import f1_score
+
 import numpy as np
+from sklearn.metrics import f1_score
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 class HMM:
     def __init__(self, name):
-        
         # name of the hmm
         self.name = name
 
@@ -100,9 +101,7 @@ class HMM:
 
         return word_appearance
 
-    def vocab_fillB(
-            self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
-        ) -> None:
+    def vocab_fillB(self, cases: List[List[Tuple[str, str]]], epsilon: int = 5) -> None:
         """
         Parses List[List[[WORD, TYPE]]] to create a vocalulary of words. In addition,
         if the word appears less than epsilon it is replaced by [UNK].
@@ -198,9 +197,7 @@ class HMM:
                 # Calculate the log2 probability
                 self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i])) + self.epsilon)
 
-    def viterbi(
-            self, sentence: Union[str, List[str]]
-        ) -> Tuple[Dict[str, str], int]:
+    def viterbi(self, sentence: Union[str, List[str]]) -> Tuple[Dict[str, str], int]:
         """
         Apply the Viterbi algorithm to calculate the best path and the log probability.
         By doing so, the PoS tagging of the sentence is obtained.
@@ -285,8 +282,8 @@ class HMM:
         return tags, pos_prob
 
     def text_and_tags(
-            self, conllu: List[List[Tuple[str, str]]]
-        ) -> Tuple[List[str], List[str]]:
+        self, conllu: List[List[Tuple[str, str]]]
+    ) -> Tuple[List[str], List[str]]:
         """
         Parses List[List[[WORD, TYPE]]] to get the sentences and the PoS tags.
 
@@ -294,12 +291,12 @@ class HMM:
         -----
         conllu: List[List[Tuple[str, str]]]
             List containing all the tuples (word, type) that appears in the parsed file.
-        
+
         Returns
         -------
         sentences: List[str]
             List of sentences.
-        
+
         tags: List[str]
             List of PoS tags.
         """
@@ -324,7 +321,6 @@ class HMM:
         path: str
             Path to the .conllu file to be parsed.
         """
-        print("Training the model: ", self.name)
 
         # Parse the training data
         word_appearence = self.parse_conllu(path)
@@ -333,9 +329,7 @@ class HMM:
         self.vocab_fillB(word_appearence)
         self.fillA(word_appearence)
 
-    def make_pred(
-            self, texts: List[str]
-        ) -> List[List[str]]:
+    def make_pred(self, texts: List[str]) -> List[List[str]]:
         """
         Makes the prediction of the PoS tags for the given sentences.
 
@@ -343,7 +337,7 @@ class HMM:
         -----
         texts: List[str]
             List of texts to be tagged.
-        
+
         Returns
         -------
         pred: List[List[str]]
@@ -361,14 +355,14 @@ class HMM:
         -----
         path: str
             Path to the .conllu file to use it to test the model.
-        
+
         Returns
         -------
         f1_score: float
             Calculated F1 score of the model.
         """
-        print("Testing the model: ", self.name)
-        # Parse the .conllu file to get the sentences and the tags 
+
+        # Parse the .conllu file to get the sentences and the tags
         dev_conllu = self.parse_conllu(path)
 
         # Get the sentences and the tags of the parsed file
@@ -377,9 +371,13 @@ class HMM:
         # Get the predictions of the model
         pred = self.make_pred(texts)
 
-        f1_value =  f1_score(gold, pred, average="micro")
+        # We cannot calculate the f1 score with the current gold and pred variables,
+        # multilabel representation is not supported anymore in scikit.
+        # We will transform it in a sparse matrix.
 
-        print("F1 score: ", f1_value)
+        gold = MultiLabelBinarizer(classes=self.tags).fit_transform(gold)
+        pred = MultiLabelBinarizer(classes=self.tags).fit_transform(pred)
+        f1_value = f1_score(gold, pred, average="micro")
 
         return f1_value
 
@@ -391,13 +389,12 @@ class HMM:
         -----
         text: str
             Sentence to be tagged.
-        
+
         Returns
         -------
         tags: List[str]
             List of PoS tags for the given sentence.
         """
-        print("Tagging the sentence: ", text)
 
         # Divide the sentence into words
         w = text.lower().split(" ")
@@ -405,23 +402,25 @@ class HMM:
         # Get the PoS tags and the log probability
         tags, log_prob = self.viterbi(w)
 
-        print("POS: ", tags)
-        print("Log probability: ", log_prob)
         return tags, log_prob
 
 
 def main():
-
     # Proper names meeh
     hmm = HMM("ESP")
 
+    print("Training the model: ", hmm.name)
     # hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
 
-    hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+    print("Testing the model: ", hmm.name)
+    f1_value_test = hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+    print("F1 score: ", f1_value_test)
 
-    hmm.pos_tagging("El gato vive aqui")
-
+    print("Tagging the sentence: ", hmm.test)
+    tags, log_prob = hmm.pos_tagging("El gato vive aqui")
+    print("POS: ", tags)
+    print("Log probability: ", log_prob)
 
 
 if __name__ == "__main__":
