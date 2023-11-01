@@ -406,7 +406,7 @@ class HMM:
 
 
 def main():
-    # Proper names meeh
+    
     hmm = HMM("ESP")
 
     print("Training the model: ", hmm.name)
@@ -417,8 +417,9 @@ def main():
     f1_value_test = hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
     print("F1 score: ", f1_value_test)
 
-    print("Tagging the sentence: ", hmm.test)
-    tags, log_prob = hmm.pos_tagging("El gato vive aqui")
+    sentence = "El gato Juan vive aqui"
+    print("Tagging the sentence: ", sentence)
+    tags, log_prob = hmm.pos_tagging(sentence)
     print("POS: ", tags)
     print("Log probability: ", log_prob)
 
