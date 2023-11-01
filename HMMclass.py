@@ -7,8 +7,8 @@ import numpy as np
 
 class HMM:
     def __init__(self, name):
-
-        #name of the hmm
+        
+        # name of the hmm
         self.name = name
 
         # Universal Dependencies POS tags
@@ -47,7 +47,7 @@ class HMM:
         # Dictionary with the index of each word in the vocabulary
         self.vocab_dict = Dict[str, int]
 
-        #Epsilon value to avoid division by 0
+        # Epsilon value to avoid division by 0
         self.epsilon = sys.float_info.min
 
     def parse_conllu(self, path: str) -> List[List[Tuple[str, str]]]:
@@ -100,7 +100,9 @@ class HMM:
 
         return word_appearance
 
-    def vocab_fillB(self, cases: List[List[Tuple[str, str]]], epsilon: int = 5) -> None:
+    def vocab_fillB(
+            self, cases: List[List[Tuple[str, str]]], epsilon: int = 5
+        ) -> None:
         """
         Parses List[List[[WORD, TYPE]]] to create a vocalulary of words. In addition,
         if the word appears less than epsilon it is replaced by [UNK].
@@ -159,7 +161,7 @@ class HMM:
                 B[:, i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                B[:, i] = np.log2(B[:, i] / (sum(B[:, i]))+self.epsilon)
+                B[:, i] = np.log2(B[:, i] / (sum(B[:, i])) + self.epsilon)
 
         self.B = B
 
@@ -194,9 +196,11 @@ class HMM:
                 self.A[i] = np.full((len(self.tags)), float("-inf"))
             else:
                 # Calculate the log2 probability
-                self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i]))+self.epsilon)
+                self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i])) + self.epsilon)
 
-    def viterbi(self, sentence: Union[str, List[str]]) -> Tuple[Dict[str, str], int]:
+    def viterbi(
+            self, sentence: Union[str, List[str]]
+        ) -> Tuple[Dict[str, str], int]:
         """
         Apply the Viterbi algorithm to calculate the best path and the log probability.
         By doing so, the PoS tagging of the sentence is obtained.
@@ -248,7 +252,6 @@ class HMM:
         # Fill in the Viterbi matrix and backpointer matrix
         for t in range(1, len(w)):
             for q in range(len(self.tags)):
-
                 # Obtain the row with the highest probability in the previous step
                 q1 = np.argmax(viterbi_matrix[:, t - 1])
 
@@ -275,13 +278,15 @@ class HMM:
         for t in range(len(w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
             # Add [WORD, TAG] tupla in the list
-            tags.append((w[t],self.tags[lag]))
+            tags.append((w[t], self.tags[lag]))
 
         tags.reverse()  # Reversing the position list
 
         return tags, pos_prob
 
-    def text_and_tags(self, conllu: List[List[Tuple[str, str]]]) -> Tuple[List[str], List[str]]:
+    def text_and_tags(
+            self, conllu: List[List[Tuple[str, str]]]
+        ) -> Tuple[List[str], List[str]]:
         """
         Parses List[List[[WORD, TYPE]]] to get the sentences and the PoS tags.
 
@@ -328,7 +333,9 @@ class HMM:
         self.vocab_fillB(word_appearence)
         self.__fillA(word_appearence)
 
-    def make_pred(self, texts: List[str]) -> List[List[str]]:
+    def make_pred(
+            self, texts: List[str]
+        ) -> List[List[str]]:
         """
         Makes the prediction of the PoS tags for the given sentences.
 
@@ -370,7 +377,6 @@ class HMM:
         # Get the predictions of the model
         pred = self.make_pred(texts)
 
-        # Calculate the F1 score of the model
         f1_value =  f1_score(gold, pred, average="micro")
 
         print("F1 score: ", f1_value)
@@ -403,19 +409,20 @@ class HMM:
         print("Log probability: ", log_prob)
         return tags, log_prob
 
+
 def main():
+
     # Proper names meeh
     hmm = HMM("ESP")
 
-    #hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
+    # hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
 
     hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
 
     hmm.pos_tagging("El gato vive aqui")
 
+
+
 if __name__ == "__main__":
     main()
-
-
-
