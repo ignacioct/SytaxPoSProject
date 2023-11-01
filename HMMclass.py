@@ -1,12 +1,16 @@
 from collections import defaultdict
 from typing import List, Tuple, Dict
 import sys
-
+#from sklearn.metrics import f1_score
 import numpy as np
 
 
 class HMM:
-    def __init__(self, input_sequence):
+    def __init__(self, name):
+
+        #name of the hmm
+        self.name = name
+
         # Universal Dependencies POS tags
         self.tags = [
             "ADJ",
@@ -30,9 +34,6 @@ class HMM:
 
         # Dictionary with the index of each tag
         self.tag_dict = {k: v for v, k in enumerate(self.tags)}
-
-        # Input sequence
-        self.w = input_sequence.split()
 
         # Smoothing value
         self.smooth_value = 0
@@ -195,17 +196,7 @@ class HMM:
                 # Calculate the log2 probability
                 self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i]))+self.epsilon)
 
-    def train(self, path):
-        print("Training the model")
-
-        # Parse the training data
-        word_appearence = self.parse_conllu(path)
-
-        # Filling tables A and B. Vocab is also obtained while filling B
-        self.vocab_fillB(word_appearence)
-        self.__fillA(word_appearence)
-
-    def viterbi(self) -> Tuple[Dict[str, str], int]:
+    def viterbi(self, sentence) -> Tuple[Dict[str, str], int]:
         """
         Apply the Viterbi algorithm to calculate the best path and the probability.
         By doing so, the PoS tagging of the sentence is obtained.
@@ -219,19 +210,28 @@ class HMM:
             Calculated probability of the best path, which correspond to the obtained tags.
         """
 
+        if type(sentence) is str:
+            w = sentence.lower().split(" ")
+        elif type(sentence) is list or type(sentence) is tuple:
+            w = list(map(str.lower, sentence))
+        else:
+            print("Unknown type")
+            print(type(sentence))
+            exit()
+            w = sentence
+
         # We will use a subset of B, only with the words that are passed in the sequence
         indeces = []
-        for word in self.w:
+        for word in w:
             if word in self.vocab_dict.keys():
                 indeces.append(self.vocab_dict[word])
             else:
                 indeces.append(self.vocab_dict["[UNK]"])
 
         submatrix_B = self.B[:, indeces]
-        print(submatrix_B)
 
         # Initialize the Viterbi matrix
-        viterbi_matrix = np.zeros((len(self.tags), len(self.w)))
+        viterbi_matrix = np.zeros((len(self.tags), len(w)))
 
         # Fill up the first column of the Viterbi matrix
         # Handling specially the - infinite cases
@@ -241,11 +241,9 @@ class HMM:
             else self.A[0, i] + submatrix_B[i, 0]
             for i in range(len(self.A))
         ]
-
-        pos = []
-
+        lag = 0
         # Fill in the Viterbi matrix and backpointer matrix
-        for t in range(1, len(self.w)):
+        for t in range(1, len(w)):
             for q in range(len(self.tags)):
 
                 # Obtain the row with the highest probability in the previous step
@@ -264,27 +262,75 @@ class HMM:
                 # Filling the Viterbi matrix
                 viterbi_matrix[q, t] = lag
 
+        # The last probability of viterbi matrix is the los prob of the whole sentence
+        log_prob = lag
+
+        # Initialize tags list
+        tags = []
+
         # Bactrack to obtain the path followed. It must be reversed aftwerwards.
-        for t in range(len(self.w) - 1, -1, -1):
+        for t in range(len(w) - 1, -1, -1):
             lag = np.argmax(viterbi_matrix[:, t])
-            pos.append(self.tags[lag])
+            # Add [WORD, TAG] tupla in the list
+            tags.append((w[t],self.tags[lag]))
 
-        tags = []  # Output tag dictionary
+        tags.reverse()  # Reversing the position list
 
-        pos.reverse()  # Reversing the position list
+        return tags, log_prob
 
-        for word, tag in zip(self.w, pos):
-            tags.append((word, tag))
+    def text_and_tags(self, conllu):
+        sentences = []
+        tags = []
+        for sublist in conllu:
+            sentece, tag = list(zip(*sublist))
+            sentences.append(sentece)
+            tags.append(tag)
+        return sentences, tags
 
-        return tags, float(np.max(viterbi_matrix[:, len(self.w) - 1]))
+    def train(self, path):
+        print("Training the model: ", self.name)
+
+        # Parse the training data
+        word_appearence = self.parse_conllu(path)
+
+        # Filling tables A and B. Vocab is also obtained while filling B
+        self.vocab_fillB(word_appearence)
+        self.__fillA(word_appearence)
+
+    def make_pred(self, texts):
+        return list(map(lambda text: list(zip(*self.viterbi(text)[0]))[1], texts))
+
+    def test(self, path):
+
+        dev_conllu = self.parse_conllu(path)
+
+        texts, gold = self.text_and_tags(dev_conllu)
+
+        pred = self.make_pred(texts)
+
+        f1_score =  0.0 #f1_score(gold, pred, average="micro")
+
+        print("F1 score: ", f1_score)
+
+        return f1_score
+
+    def pos_tagging(self, text):
+        w = text.lower().split(" ")
+        tags, log_prob = self.viterbi(w)
+        print("POS: ", tags)
+        print("Log probability: ", log_prob)
+        return tags, log_prob
 
 def main():
     # Proper names meeh
-    hmm = HMM("Jordi")
+    hmm = HMM("ESP")
 
     #hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
-    print(hmm.viterbi())
+
+    hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+
+    hmm.pos_tagging("El gato es negro")
 
 if __name__ == "__main__":
     main()
