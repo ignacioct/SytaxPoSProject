@@ -8,7 +8,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 
 class HMM:
-    def __init__(self, name):
+    def __init__(self, name, smooth_value=0):
         # name of the hmm
         self.name = name
 
@@ -37,7 +37,7 @@ class HMM:
         self.tag_dict = {k: v for v, k in enumerate(self.tags)}
 
         # Smoothing value
-        self.smooth_value = 1.0
+        self.smooth_value = smooth_value
 
         # Transition probability matrix
         self.A = np.full((len(self.tags), len(self.tags)), self.smooth_value)
