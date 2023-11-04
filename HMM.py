@@ -205,7 +205,9 @@ class HMM:
                 # Calculate the log2 probability
                 self.A[i, :] = np.log2(mat[i, :] / (sum(mat[i])) + self.epsilon)
 
-    def viterbi(self, sentence: Union[str, List[str]]) -> Tuple[Dict[str, str], int]:
+    def viterbi(
+        self, sentence: Union[str, List[str]]
+    ) -> Tuple[Dict[str, str], int, np.ndarray]:
         """
         Apply the Viterbi algorithm to calculate the best path and the log probability.
         By doing so, the PoS tagging of the sentence is obtained.
@@ -222,6 +224,9 @@ class HMM:
 
         probability: float
             Calculated log probability of the best path, which correspond to the obtained tags.
+
+        viterbi: numpy.ndarray
+            Viterbi matrix in numpy array form
         """
 
         if type(sentence) is str:
@@ -287,7 +292,7 @@ class HMM:
 
         tags.reverse()  # Reversing the position list
 
-        return tags, pos_prob
+        return tags, pos_prob, viterbi_matrix
 
     def text_and_tags(
         self, conllu: List[List[Tuple[str, str]]]
@@ -357,7 +362,7 @@ class HMM:
 
     def test(self, path: str) -> Dict[str, float]:
         """
-        Tests the model with the data in the given path. Then calculate the micro version of the F1 score.
+        Tests the model with the data in the given path. Then calculate several metrics.
 
         Input
         -----
@@ -388,6 +393,7 @@ class HMM:
 
         accuracy_value = accuracy_score(gold, pred)
         recall_value = recall_score(gold, pred, average="micro")
+
         f1_micro = f1_score(gold, pred, average="micro")
         f1_macro = f1_score(gold, pred, average="macro")
 
@@ -417,9 +423,32 @@ class HMM:
         w = text.lower().split(" ")
 
         # Get the PoS tags and the log probability
-        tags, log_prob = self.viterbi(w)
+        tags, log_prob, _ = self.viterbi(w)
 
         return tags, log_prob
+
+    def pos_get_viterbi(self, text: str) -> np.ndarray:
+        """
+        Tags the given sentence with the model and outputs the Viterbi matrix
+
+        Input
+        -----
+        text: str
+            Sentence to be tagged.
+
+        Returns
+        -------
+        viterbi: numpy.ndarray
+            Viterbi matrix after the PoS tagging process
+        """
+
+        # Divide the sentence into words
+        w = text.lower().split(" ")
+
+        # Get the PoS tags and the log probability
+        _, _, viterbi = self.viterbi(w)
+
+        return viterbi
 
 
 def main():
