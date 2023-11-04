@@ -8,8 +8,16 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 
 class HMM:
+    """
+    Hidden Markov Model Class.
+
+    Class that encapsulates the Hidden Markov Model architecture and implements
+    a way to train, test and execute the Viterbi algorithm to perform PoS tagging.
+    Implemented for Basque and Spanish.
+    """
+
     def __init__(self, name, smooth_value=0):
-        # name of the hmm
+        # name of the HMM
         self.name = name
 
         # Universal Dependencies POS tags
@@ -406,7 +414,6 @@ class HMM:
 
 
 def main():
-    
     hmm = HMM("ESP")
 
     print("Training the model: ", hmm.name)
