@@ -387,7 +387,7 @@ class HMM:
         pred = MultiLabelBinarizer(classes=self.tags).fit_transform(pred)
 
         accuracy_value = accuracy_score(gold, pred)
-        recall_value = recall_score(gold, pred)
+        recall_value = recall_score(gold, pred, average="micro")
         f1_micro = f1_score(gold, pred, average="micro")
         f1_macro = f1_score(gold, pred, average="macro")
 
