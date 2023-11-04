@@ -3,7 +3,7 @@ from typing import List, Tuple, Dict, Union
 import sys
 
 import numpy as np
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, recall_score, f1_score, confusion_matrix
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
@@ -355,7 +355,7 @@ class HMM:
         # Then zip the result to get only the list of tags.
         return list(map(lambda text: list(zip(*self.viterbi(text)[0]))[1], texts))
 
-    def test(self, path: str) -> float:
+    def test(self, path: str) -> Dict[str, float]:
         """
         Tests the model with the data in the given path. Then calculate the micro version of the F1 score.
 
@@ -366,8 +366,8 @@ class HMM:
 
         Returns
         -------
-        f1_score: float
-            Calculated F1 score of the model.
+        scores: Dict[str, float]
+            Dictionary containing accuracy, recall, micro-averaged f1 and macro-averaged f1 score values.
         """
 
         # Parse the .conllu file to get the sentences and the tags
@@ -385,9 +385,18 @@ class HMM:
 
         gold = MultiLabelBinarizer(classes=self.tags).fit_transform(gold)
         pred = MultiLabelBinarizer(classes=self.tags).fit_transform(pred)
-        f1_value = f1_score(gold, pred, average="micro")
 
-        return f1_value
+        accuracy_value = accuracy_score(gold, pred)
+        recall_value = recall_score(gold, pred)
+        f1_micro = f1_score(gold, pred, average="micro")
+        f1_macro = f1_score(gold, pred, average="macro")
+
+        return {
+            "Accuracy": accuracy_value,
+            "Recall": recall_value,
+            "Micro-averaged F1 score": f1_micro,
+            "Macro-averaged F1 score": f1_macro,
+        }
 
     def pos_tagging(self, text: str) -> Tuple[List[str], float]:
         """
