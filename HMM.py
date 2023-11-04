@@ -430,8 +430,8 @@ def main():
     hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
 
     print("Testing the model: ", hmm.name)
-    f1_value_test = hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
-    print("F1 score: ", f1_value_test)
+    test_scores = hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
+    print(test_scores)
 
     sentence = "El gato Juan vive aqui"
     print("Tagging the sentence: ", sentence)
