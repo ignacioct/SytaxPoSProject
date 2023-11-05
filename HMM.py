@@ -3,7 +3,11 @@ from typing import List, Tuple, Dict, Union
 import sys
 
 import numpy as np
-from sklearn.metrics import accuracy_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    recall_score,
+    f1_score,
+)
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
