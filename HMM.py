@@ -449,25 +449,3 @@ class HMM:
         _, _, viterbi = self.viterbi(w)
 
         return viterbi
-
-
-def main():
-    hmm = HMM("ESP")
-
-    print("Training the model: ", hmm.name)
-    # hmm.train("UD_Basque-BDT/eu_bdt-ud-train.conllu")
-    hmm.train("./UD_Spanish-AnCora/es_ancora-ud-train.conllu")
-    """
-    print("Testing the model: ", hmm.name)
-    test_scores = hmm.test("./UD_Spanish-AnCora/es_ancora-ud-dev.conllu")
-    print(test_scores)
-    """
-    sentence = "El gato Juan vive aqui"
-    print("Tagging the sentence: ", sentence)
-    tags, log_prob = hmm.pos_tagging(sentence)
-    print("POS: ", tags)
-    print("Log probability: ", log_prob)
-
-
-if __name__ == "__main__":
-    main()
